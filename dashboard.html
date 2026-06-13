@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard — Core Games Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="shared.css">
+<style>
+/* ── Dashboard-specific ── */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-top: 4px;
+}
+
+.stat-card {
+    display: flex; flex-direction: column;
+}
+.stat-card .stat-value { margin-top: 8px; }
+.stat-card .level-title {
+    color: var(--primary); font-size: 14px; font-weight: 700;
+    margin-top: 4px; letter-spacing: 0.5px;
+}
+
+.cta-card {
+    text-align: center;
+    padding: clamp(28px, 4vw, 44px);
+}
+.cta-card h2 { font-size: 20px; margin-bottom: 10px; }
+.cta-card p { color: var(--text-muted); font-size: 15px; line-height: 1.65; max-width: 480px; margin: 0 auto; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+    <a href="index.html">Home</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="activity.html">Activity</a>
+    <a href="http://localhost:5000/login">Login</a>
+</nav>
+
+<header class="hero animate-in">
+    <div class="hero-eyebrow">Your Progress</div>
+    <h1 class="hero-title" style="font-size: clamp(32px, 4vw, 52px);">Member Dashboard</h1>
+    <p class="hero-sub" style="font-size: 15px;">Level, streak, and community status at a glance.</p>
+</header>
+
+<main>
+    <section class="section animate-in delay-1">
+        <div class="section-title">Stats</div>
+        <div class="stats-grid">
+
+            <div class="card stat-card">
+                <div class="card-label">Current Level</div>
+                <div class="stat-value" id="level-number">—</div>
+                <div class="level-title" id="level-title">Loading…</div>
+                <div class="xp-bar-track"><div class="xp-bar-fill" id="xp-bar" style="width:0%"></div></div>
+                <div class="stat-sub" id="xp-progress" style="margin-top: 10px;"></div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-label">Total XP</div>
+                <div class="stat-value" id="xp-display">—</div>
+                <div class="stat-sub">experience points</div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-label">Daily Streak</div>
+                <div class="stat-value" id="streak-display">—</div>
+                <div class="stat-sub">days</div>
+            </div>
+
+        </div>
+    </section>
+
+    <section class="section animate-in delay-2" style="margin-top: 8px;">
+        <div class="card cta-card">
+            <h2>Earn More XP</h2>
+            <p>Claim your daily reward, spin the lucky wheel, and take the Roblox quiz in the Activity Hub.</p>
+            <a class="btn" href="activity.html" style="margin-top: 20px;">Go to Activity Hub</a>
+        </div>
+    </section>
+</main>
+
+<footer class="footer">
+    <div class="footer-copy">Core Games Studio &copy; 2026</div>
+    <div>
+        <a href="https://discord.gg/rcGes2BrGE" target="_blank">Discord</a>
+        <a href="activity.html">Activity Hub</a>
+    </div>
+</footer>
+
+<script>
+(function() {
+    var page = location.pathname.split('/').pop() || 'index.html';
+    document.querySelectorAll('.nav a').forEach(a => {
+        if (a.getAttribute('href') === page) a.classList.add('active');
+        if (a.getAttribute('href') === '/login' && location.protocol === 'file:') {
+            a.href = 'http://localhost:5000/login';
+        }
+    });
+})();
+
+function renderProgress(profile) {
+    const xp = profile.xp || 0;
+    const streak = profile.streak || 0;
+    const level = profile.level || 1;
+    const title = profile.title || 'Visitor';
+    const nextThreshold = profile.next_threshold;
+
+    document.getElementById('xp-display').textContent = xp.toLocaleString();
+    document.getElementById('streak-display').textContent = streak;
+    document.getElementById('level-number').textContent = level;
+    document.getElementById('level-title').textContent = title;
+
+    if (nextThreshold !== null && typeof nextThreshold === 'number') {
+        const tierMin = profile.xp >= 2000 ? 2000 : profile.xp >= 1000 ? 1000 : profile.xp >= 500 ? 500 : profile.xp >= 250 ? 250 : profile.xp >= 100 ? 100 : 0;
+        const pct = Math.round(((xp - tierMin) / (nextThreshold - tierMin)) * 100);
+        document.getElementById('xp-bar').style.width = pct + '%';
+        document.getElementById('xp-progress').textContent = (xp - tierMin) + ' / ' + (nextThreshold - tierMin) + ' XP to level ' + (level + 1);
+    } else {
+        document.getElementById('xp-bar').style.width = '100%';
+        document.getElementById('xp-progress').textContent = 'Maximum level reached';
+    }
+}
+
+async function fetchProfile() {
+    try {
+        const res = await fetch('http://localhost:5000/me', { credentials: 'include' });
+        if (!res.ok) {
+            return null;
+        }
+        return await res.json();
+    } catch (err) {
+        return null;
+    }
+}
+
+async function updateDashboard() {
+    const profile = await fetchProfile();
+    if (!profile || profile.error) {
+        renderProgress({ xp: 0, streak: 0, level: 1, title: 'Visitor', next_threshold: 100 });
+        return;
+    }
+    renderProgress(profile);
+}
+
+updateDashboard();
+setInterval(updateDashboard, 3000);
+</script>
+</body>
+</html>

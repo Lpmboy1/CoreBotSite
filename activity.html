@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Activity Hub — Core Games Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="shared.css">
+<style>
+/* ── Activity-specific ── */
+.activity-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+    gap: clamp(16px, 2vw, 28px);
+    padding: 0 clamp(16px, 6%, 72px) 64px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.activity-card {
+    background: var(--card-bg);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-card);
+    padding: clamp(24px, 3vw, 36px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04);
+    transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    display: flex; flex-direction: column; min-height: 420px;
+}
+.activity-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--card-border-hover);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.4), 0 0 24px rgba(0,174,239,0.08);
+}
+
+.activity-card h2 {
+    color: var(--primary); font-size: clamp(18px, 2vw, 24px);
+    font-weight: 700; margin-bottom: 10px;
+}
+.activity-card > p {
+    color: var(--text-muted); font-size: 14px; line-height: 1.65; margin-bottom: 20px;
+}
+
+/* STREAK / COUNTDOWN */
+.streak-badge {
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(28px, 3vw, 44px); font-weight: 800;
+    color: var(--warning); margin: auto 0;
+    text-shadow: 0 0 24px rgba(245,158,11,0.4);
+    text-align: center;
+}
+.countdown {
+    font-size: clamp(16px, 1.5vw, 20px); font-weight: 700;
+    color: var(--primary); margin: auto 0; text-align: center;
+    font-variant-numeric: tabular-nums;
+    background: rgba(0,174,239,0.08); padding: 12px 20px; border-radius: 10px;
+    border: 1px solid rgba(0,174,239,0.15);
+}
+
+.btn-container { margin-top: auto; display: flex; flex-direction: column; align-items: center; width: 100%; padding-top: 16px; }
+
+/* WHEEL */
+.wheel-wrap {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; flex-grow: 1; width: 100%; margin: 8px 0;
+}
+.wheel-pointer {
+    width: 0; height: 0;
+    border-left: 15px solid transparent; border-right: 15px solid transparent;
+    border-top: 28px solid var(--warning);
+    margin-bottom: -8px; position: relative; z-index: 5;
+    filter: drop-shadow(0 4px 8px rgba(245,158,11,0.55));
+}
+#wheel {
+    border-radius: 50%;
+    box-shadow: 0 0 40px var(--glow), 0 0 80px rgba(0,174,239,0.08);
+    width: 100%; max-width: 340px; aspect-ratio: 1;
+    border: 5px solid rgba(10,18,36,0.9);
+}
+.wheel-status {
+    font-size: 13px; font-weight: 600; text-align: center;
+    margin-bottom: 10px; color: var(--text-muted);
+}
+.wheel-result {
+    margin-top: 14px; font-size: clamp(17px, 1.5vw, 21px);
+    font-weight: 700; color: var(--warning);
+    text-shadow: 0 0 14px rgba(245,158,11,0.5);
+    text-align: center; min-height: 28px;
+}
+
+/* QUIZ */
+#quiz-area {
+    flex-grow: 1; display: flex; flex-direction: column; justify-content: center;
+}
+.quiz-score-display {
+    font-size: clamp(44px, 5vw, 68px); font-weight: 800;
+    color: var(--primary); text-align: center; margin: 10px 0;
+    text-shadow: 0 0 28px var(--glow);
+}
+
+/* PROGRESSION TABLE (full-width card) */
+.prog-card { grid-column: 1 / -1; }
+.prog-card h2 { margin-bottom: 10px; }
+.prog-card > p { color: var(--text-muted); font-size: 14px; line-height: 1.65; margin-bottom: 20px; }
+
+.level-table {
+    width: 100%; border-collapse: collapse; margin-top: 14px;
+}
+.level-table th, .level-table td {
+    padding: 12px 14px; border: 1px solid rgba(148,163,184,0.16);
+}
+.level-table th {
+    text-align: left; background: rgba(15,23,42,0.9); font-weight: 700;
+}
+.level-table tbody tr:hover { background: rgba(59,130,246,0.08); }
+
+.xp-toast {
+    position: fixed; right: 20px; bottom: 20px; background: rgba(15,23,42,0.95);
+    color: #fff; padding: 14px 18px; border-radius: 16px; box-shadow: 0 20px 60px rgba(15,23,42,0.35);
+    z-index: 9999; animation: toastIn 0.3s ease;
+}
+@keyframes toastIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+    <a href="index.html">Home</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="activity.html">Activity</a>
+    <a href="http://localhost:5000/login">Login</a>
+</nav>
+
+<header class="hero animate-in">
+    <div class="hero-eyebrow">Earn XP • Progress • Compete</div>
+    <h1 class="hero-title" style="font-size: clamp(34px, 5vw, 58px);">Activity Hub</h1>
+    <p class="hero-sub" style="font-size: 15px;">Complete daily activities to earn XP and climb the ranks.</p>
+</header>
+
+<div class="activity-grid">
+
+    <!-- DAILY REWARD -->
+    <div class="activity-card animate-in delay-1">
+        <h2>Daily Reward</h2>
+        <p>Claim 25 XP every 24 hours. Return each day to build your streak and maximize your progression.</p>
+        <div class="streak-badge" id="streak-display">🔥 0 days</div>
+        <div class="countdown" id="claim-countdown" style="display:none;"></div>
+        <div class="btn-container" id="claim-area">
+            <button class="btn" id="claim-btn" onclick="claimReward()">Claim Reward</button>
+        </div>
+    </div>
+
+    <!-- QUIZ -->
+    <div class="activity-card animate-in delay-2" id="quiz-card">
+        <h2>Roblox Quiz</h2>
+        <p>Test your knowledge — answer 5 questions to earn up to 50 XP. Refreshes every hour.</p>
+        <div id="quiz-start-area" style="display:flex; flex-direction:column; flex-grow:1; justify-content:center; align-items:center; width:100%;">
+            <div id="quiz-cooldown" style="margin-bottom:16px; color:var(--text-muted); font-size:14px; font-weight:600; text-align:center;"></div>
+            <button class="btn" id="quiz-btn" onclick="startQuiz()">Start Quiz</button>
+        </div>
+        <div id="quiz-area" style="display:none;"></div>
+    </div>
+
+    <!-- LUCKY WHEEL -->
+    <div class="activity-card animate-in delay-3">
+        <h2>Lucky Wheel</h2>
+        <p>Spin for a chance to win up to 100 XP. Available once every 6 hours.</p>
+        <div class="wheel-wrap">
+            <div class="wheel-pointer"></div>
+            <canvas id="wheel" width="600" height="600"></canvas>
+        </div>
+        <div class="btn-container" style="padding-top:8px;">
+            <div class="wheel-status" id="wheel-status"></div>
+            <button class="btn" id="spin-btn" onclick="spinWheel()">Spin Wheel</button>
+            <div class="wheel-result" id="wheel-result"></div>
+        </div>
+    </div>
+
+    <!-- PROGRESSION TABLE -->
+    <div class="activity-card prog-card animate-in delay-4">
+        <h2>Progression System</h2>
+        <p>Your total XP determines your level and community status. Higher levels unlock exclusive Discord roles and recognition.</p>
+        <div class="table-wrap">
+            <div id="dynamic-level-table-container"></div>
+        </div>
+    </div>
+
+</div>
+
+<footer class="footer">
+    <div class="footer-copy">Core Games Studio © 2026</div>
+    <div>
+        <a href="https://discord.gg/rcGes2BrGE" target="_blank">Discord</a>
+        <a href="dashboard.html">Dashboard</a>
+    </div>
+</footer>
+
+<script>
+const API_URL = "http://localhost:5000";
+let userProfile = null;
+
+// ============================================================
+// PROGRESSION CONFIG
+// ============================================================
+const PROGRESSION_TIERS = [
+    { min: 2000, level: 6, title: 'Elite' },
+    { min: 1000, level: 5, title: 'Veteran' },
+    { min: 500,  level: 4, title: 'Regular' },
+    { min: 250,  level: 3, title: 'Member' },
+    { min: 100,  level: 2, title: 'Newcomer' },
+    { min: 0,    level: 1, title: 'Visitor' },
+];
+
+function renderLevelTable() {
+    const container = document.getElementById('dynamic-level-table-container');
+    let html = '<table class="level-table"><thead><tr><th>Level</th><th>Title</th><th>Total XP Required</th></tr></thead><tbody>';
+    PROGRESSION_TIERS.forEach(t => {
+        html += `<tr><td><strong>${t.level}</strong></td><td>${t.title}</td><td>${t.min.toLocaleString()} XP</td></tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+// ============================================================
+// XP HELPERS & NAV
+// ============================================================
+async function fetchProfile() {
+    try {
+        const res = await fetch(`${API_URL}/me`, { credentials: 'include' });
+        if (!res.ok) return null;
+        return await res.json();
+    } catch (err) {
+        return null;
+    }
+}
+
+async function addXP(amount) {
+    try {
+        const res = await fetch(`${API_URL}/add_xp`, {
+            method: "POST",
+            credentials: "include",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ amount })
+        });
+
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            console.error('XP add failed', data);
+            if (data.error === 'not logged in') {
+                alert('Please log in to add XP.');
+            }
+            return false;
+        }
+
+        showXPToast(amount);
+        return true;
+    } catch (err) {
+        console.error('XP add network error', err);
+        return false;
+    }
+}
+
+async function claimDaily() {
+    try {
+        const res = await fetch(`${API_URL}/claim_daily`, {
+            method: "POST",
+            credentials: "include"
+        });
+
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            console.error('Claim failed', data);
+            return null;
+        }
+        return await res.json();
+    } catch (err) {
+        console.error('Claim error', err);
+        return null;
+    }
+}
+
+function getLocalStreak() {
+    return parseInt(localStorage.getItem('cgs_streak') || '0');
+}
+
+function getClaimTimestamp() {
+    if (userProfile && userProfile.last_claim) {
+        return userProfile.last_claim * 1000;
+    }
+    return parseInt(localStorage.getItem('cgs_lastClaim') || '0');
+}
+
+function pad(n) { return n.toString().padStart(2, '0'); }
+
+function showXPToast(amount) {
+    const t = document.createElement('div');
+    t.className = 'xp-toast';
+    t.textContent = '✨ +' + amount + ' XP Added';
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3400);
+}
+
+(function() {
+    var page = location.pathname.split('/').pop() || 'index.html';
+    document.querySelectorAll('.nav a').forEach(a => {
+        if (a.getAttribute('href') === page) a.classList.add('active');
+        if (a.getAttribute('href') === '/login' && location.protocol === 'file:') {
+            a.href = 'http://localhost:5000/login';
+        }
+    });
+})();
+
+// ============================================================
+// DAILY REWARD
+// ============================================================
+async function claimReward() {
+    const lastClaim = getClaimTimestamp();
+    if (lastClaim > 0 && Date.now() - lastClaim < 86400000) return;
+
+    const result = await claimDaily();
+    if (!result || result.error) {
+        if (result?.error === 'not logged in') {
+            window.location.href = '/login';
+        } else {
+            alert(result?.error || 'Unable to claim daily reward.');
+        }
+        return;
+    }
+
+    userProfile = result.profile || userProfile;
+    if (userProfile) {
+        localStorage.setItem('cgs_streak', userProfile.streak);
+        localStorage.setItem('cgs_lastClaim', userProfile.last_claim * 1000);
+        localStorage.setItem('cgs_lastClaimDate', new Date(userProfile.last_claim * 1000).toDateString());
+    }
+    updateDailyRewardUI();
+}
+
+function updateDailyRewardUI() {
+    const lastClaim = getClaimTimestamp();
+    const streak = userProfile ? userProfile.streak : getLocalStreak();
+    document.getElementById('streak-display').textContent = `🔥 ${streak} Day${streak !== 1 ? 's' : ''}`;
+
+    const claimArea = document.getElementById('claim-area');
+    const countdown = document.getElementById('claim-countdown');
+
+    if (lastClaim > 0 && (Date.now() - lastClaim) < 86400000) {
+        claimArea.style.display = 'none';
+        countdown.style.display = 'block';
+    } else {
+        claimArea.style.display = 'flex';
+        countdown.style.display = 'none';
+    }
+}
+
+function refreshDailyCountdown() {
+    const lastClaim = getClaimTimestamp();
+    if (!lastClaim) return;
+    const remaining = 86400000 - (Date.now() - lastClaim);
+    if (remaining <= 0) {
+        updateDailyRewardUI();
+        return;
+    }
+    document.getElementById('claim-countdown').textContent = `Available in ${Math.floor(remaining / 3600000)}h ${pad(Math.floor((remaining % 3600000) / 60000))}m ${pad(Math.floor((remaining % 60000) / 1000))}s`;
+}
+
+// ============================================================
+// LUCKY WHEEL
+// ============================================================
+var PRIZES = [
+    { xp: 10,  color: '#0f172a', label: '10 XP' },
+    { xp: 50,  color: '#00AEEF', label: '50 XP' },
+    { xp: 20,  color: '#1e293b', label: '20 XP' },
+    { xp: 100, color: '#f59e0b', label: '100 XP' },
+    { xp: 15,  color: '#0f172a', label: '15 XP' },
+    { xp: 75,  color: '#8b5cf6', label: '75 XP' },
+    { xp: 5,   color: '#1e293b', label: '5 XP' },
+    { xp: 30,  color: '#10b981', label: '30 XP' }
+];
+var SLICE = (2 * Math.PI) / PRIZES.length;
+var wheelRotation = 0;
+var wheelSpinning = false;
+var canvas = document.getElementById('wheel');
+var ctx = canvas.getContext('2d');
+
+function drawWheel(rotation) {
+    var W = canvas.width, H = canvas.height, cx = W / 2, cy = H / 2, r = Math.min(cx, cy) - 16;
+    ctx.clearRect(0, 0, W, H);
+    for (var i = 0; i < PRIZES.length; i++) {
+        var start = -Math.PI / 2 + i * SLICE + rotation, end = start + SLICE;
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, start, end); ctx.closePath();
+        ctx.fillStyle = PRIZES[i].color; ctx.fill();
+        ctx.strokeStyle = '#05080f'; ctx.lineWidth = 8; ctx.stroke();
+
+        var mid = start + SLICE / 2;
+        ctx.save(); ctx.translate(cx + Math.cos(mid) * r * 0.65, cy + Math.sin(mid) * r * 0.65);
+        ctx.rotate(mid + Math.PI / 2);
+        ctx.fillStyle = 'white'; ctx.font = 'bold 30px "Segoe UI", sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(PRIZES[i].label, 0, 0);
+        ctx.restore();
+    }
+    ctx.beginPath(); ctx.arc(cx, cy, 55, 0, 2 * Math.PI); ctx.fillStyle = '#05080f'; ctx.fill();
+    ctx.strokeStyle = '#00AEEF'; ctx.lineWidth = 8; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, 20, 0, 2 * Math.PI); ctx.fillStyle = '#00AEEF'; ctx.fill();
+}
+
+function spinWheel() {
+    if (wheelSpinning) return;
+    var now = Date.now();
+    var lastSpin = parseInt(localStorage.getItem('cgs_lastSpin') || '0');
+    if (lastSpin > 0 && (now - lastSpin) < 6 * 3600000) return;
+
+    var winIndex = Math.floor(Math.random() * PRIZES.length);
+    var targetRotation = wheelRotation + ((winIndex + 0.5) * SLICE - ((wheelRotation % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) + (2 * Math.PI) + 7 * 2 * Math.PI;
+
+    wheelSpinning = true;
+    document.getElementById('spin-btn').disabled = true;
+    document.getElementById('wheel-result').textContent = '';
+
+    var startTime = performance.now(), startRotation = wheelRotation, spinDist = targetRotation - startRotation;
+    function animate(tNow) {
+        var t = Math.min((tNow - startTime) / 4500, 1);
+        wheelRotation = startRotation + spinDist * (1 - Math.pow(1 - t, 3));
+        drawWheel(wheelRotation);
+        if (t < 1) requestAnimationFrame(animate);
+        else {
+            wheelSpinning = false;
+            addXP(PRIZES[winIndex].xp).then(success => {
+                if (success) {
+                    localStorage.setItem('cgs_lastSpin', Date.now());
+                    document.getElementById('wheel-result').textContent = '🎉 You won ' + PRIZES[winIndex].xp + ' XP!';
+                    updateWheelUI();
+                } else {
+                    document.getElementById('wheel-result').textContent = 'Spin failed. Please log in.';
+                }
+            });
+        }
+    }
+    requestAnimationFrame(animate);
+}
+
+function updateWheelUI() {
+    var remaining = (6 * 3600000) - (Date.now() - parseInt(localStorage.getItem('cgs_lastSpin') || '0'));
+    var btn = document.getElementById('spin-btn'), status = document.getElementById('wheel-status');
+    if (!btn || !status) return;
+    if (remaining > 0) {
+        btn.disabled = true;
+        status.textContent = `Available in ${Math.floor(remaining / 3600000)}h ${pad(Math.floor((remaining % 3600000) / 60000))}m`;
+    } else {
+        btn.disabled = false;
+        status.textContent = 'Ready to spin!';
+    }
+}
+
+// ============================================================
+// QUIZ
+// ============================================================
+var QUESTIONS = [
+    { q: 'What year was Roblox officially launched to the public?', opts: ['2004', '2006', '2008', '2010'], correct: 1 },
+    { q: 'What is the virtual currency used in Roblox called?', opts: ['Coins', 'RBX', 'Robux', 'Roblox Tokens'], correct: 2 },
+    { q: 'Who is the CEO and co-founder of Roblox?', opts: ['Markus Persson', 'David Baszucki', 'Gabe Newell', 'John Shedletsky'], correct: 1 },
+    { q: 'What programming language is used to script Roblox games?', opts: ['JavaScript', 'Python', 'Lua', 'C#'], correct: 2 },
+    { q: "What is Roblox's game creation tool called?", opts: ['Roblox Builder', 'Roblox Studio', 'Roblox Forge', 'Roblox Engine'], correct: 1 }
+];
+var quizState = null;
+
+function startQuiz() {
+    var lastQuiz = parseInt(localStorage.getItem('cgs_lastQuiz') || '0');
+    if (lastQuiz > 0 && (Date.now() - lastQuiz) < 3600000) return;
+
+    quizState = { questions: [...QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 5), current: 0, score: 0, answered: false };
+    document.getElementById('quiz-start-area').style.display = 'none';
+    document.getElementById('quiz-area').style.display = 'flex';
+    renderQuestion();
+}
+
+function renderQuestion() {
+    var q = quizState.questions[quizState.current];
+    var optsHTML = q.opts.map((opt, i) => `<button class="quiz-option" onclick="answerQuiz(${i})">${opt}</button>`).join('');
+    document.getElementById('quiz-area').innerHTML =
+        `<div class="quiz-progress">Question ${quizState.current + 1} of ${quizState.questions.length}</div>` +
+        `<div class="quiz-question">${q.q}</div>` +
+        `<div class="quiz-options">${optsHTML}</div>` +
+        `<div id="quiz-feedback" style="margin-top:16px; min-height:26px; font-weight:bold; font-size:14px;"></div>`;
+    quizState.answered = false;
+}
+
+function answerQuiz(idx) {
+    if (quizState.answered) return;
+    quizState.answered = true;
+    var correct = quizState.questions[quizState.current].correct;
+
+    document.querySelectorAll('.quiz-option').forEach((btn, i) => {
+        btn.disabled = true;
+        if (i === correct) btn.classList.add('correct');
+        else if (i === idx) btn.classList.add('wrong');
+    });
+
+    var fb = document.getElementById('quiz-feedback');
+    if (idx === correct) { quizState.score++; fb.innerHTML = '<span style="color:var(--success);">✓ Correct!</span>'; }
+    else { fb.innerHTML = `<span style="color:var(--danger);">✗ Wrong.</span> The answer was: ${quizState.questions[quizState.current].opts[correct]}`; }
+
+    setTimeout(() => {
+        quizState.current++;
+        if (quizState.current < quizState.questions.length) {
+            renderQuestion();
+        } else {
+            var xpEarned = quizState.score * 10;
+            localStorage.setItem('cgs_lastQuiz', Date.now());
+            addXP(xpEarned).then(success => {
+                if (!success) alert('Please log in to save quiz XP.');
+            });
+            document.getElementById('quiz-area').innerHTML =
+                `<div style="text-align:center;">` +
+                `<div style="font-size:18px; font-weight:700;">Quiz Complete!</div>` +
+                `<div class="quiz-score-display">${quizState.score} / ${quizState.questions.length}</div>` +
+                `<div style="margin-bottom:20px; color:var(--text-muted); font-size:15px;">+${xpEarned} XP earned</div>` +
+                `<button class="btn" onclick="document.getElementById('quiz-area').style.display='none'; document.getElementById('quiz-start-area').style.display='flex'; updateQuizUI();">Done</button>` +
+                `</div>`;
+            updateQuizUI();
+        }
+    }, 1800);
+}
+
+function updateQuizUI() {
+    var remaining = 3600000 - (Date.now() - parseInt(localStorage.getItem('cgs_lastQuiz') || '0'));
+    var btn = document.getElementById('quiz-btn'), cd = document.getElementById('quiz-cooldown');
+    if (!btn || !cd) return;
+    if (remaining > 0) {
+        btn.disabled = true;
+        cd.textContent = `Available in ${Math.floor(remaining / 60000)}m ${pad(Math.floor((remaining % 60000) / 1000))}s`;
+    } else {
+        btn.disabled = false;
+        cd.textContent = '';
+    }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+async function initActivityPage() {
+    renderLevelTable();
+    drawWheel(0);
+    userProfile = await fetchProfile();
+    if (userProfile) {
+        localStorage.setItem('cgs_streak', userProfile.streak);
+        localStorage.setItem('cgs_lastClaim', userProfile.last_claim ? userProfile.last_claim * 1000 : '0');
+        localStorage.setItem('cgs_lastClaimDate', userProfile.last_claim ? new Date(userProfile.last_claim * 1000).toDateString() : '');
+    }
+    updateDailyRewardUI();
+    updateWheelUI();
+    updateQuizUI();
+}
+
+initActivityPage();
+setInterval(() => { refreshDailyCountdown(); updateWheelUI(); updateQuizUI(); }, 1000);
+</script>
+</body>
+</html>

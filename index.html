@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Core Games Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="shared.css">
+<style>
+/* ── Index-specific ── */
+.hero { padding-bottom: 80px; }
+.hero-title { font-size: clamp(44px, 6vw, 72px); }
+
+.hero-btns { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 8px; }
+
+.about-card { color: var(--text-muted); font-size: 16px; line-height: 1.75; }
+
+.build-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-top: 4px;
+}
+.build-item {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 18px 16px;
+    text-align: center;
+    font-size: 14px; font-weight: 600;
+    transition: transform 0.25s ease, border-color 0.25s ease;
+    cursor: default;
+}
+.build-item:hover { transform: translateY(-3px); border-color: var(--card-border-hover); }
+.build-item .icon { font-size: 24px; display: block; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+    <a href="index.html">Home</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="activity.html">Activity</a>
+    <a href="http://localhost:5000/login">Login</a>
+</nav>
+
+<header class="hero animate-in">
+    <div class="hero-eyebrow">Roblox Development Studio</div>
+    <h1 class="hero-title">Core Games Studio</h1>
+    <p class="hero-sub">A multi-project studio building immersive games, creative systems, and community-driven experiences on Roblox.</p>
+    <div class="hero-btns">
+        <a class="btn" href="dashboard.html">View Dashboard</a>
+        <a class="btn btn-ghost" href="activity.html">Activity Hub</a>
+    </div>
+</header>
+
+<main>
+    <section class="section animate-in delay-1">
+        <div class="section-title">About Us</div>
+        <div class="card about-card">
+            Core Games Studio is an independent Roblox development studio working across multiple game genres. We focus on engaging gameplay systems, creative mechanics, and long-term player progression. Our goal is to experiment, innovate, and build experiences that keep players coming back.
+        </div>
+    </section>
+
+    <section class="section animate-in delay-2" style="margin-top: 8px;">
+        <div class="section-title">What We Build</div>
+        <div class="build-grid">
+            <div class="build-item"><span class="icon">🎮</span>Multiplayer Experiences</div>
+            <div class="build-item"><span class="icon">⚔️</span>Competitive Systems</div>
+            <div class="build-item"><span class="icon">🧠</span>Puzzle &amp; Logic Games</div>
+            <div class="build-item"><span class="icon">😱</span>Horror Experiences</div>
+            <div class="build-item"><span class="icon">🌍</span>Open World Concepts</div>
+            <div class="build-item"><span class="icon">⚙️</span>Progression Systems</div>
+        </div>
+    </section>
+</main>
+
+<footer class="footer">
+    <div class="footer-copy">Core Games Studio &copy; 2026</div>
+    <div>
+        <a href="https://discord.gg/rcGes2BrGE" target="_blank">Discord</a>
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLSdF82NFk77IdmNtjzbSToyW567B1ixZadl-u9Fdkkx6WBqjsA/viewform" target="_blank">Feedback</a>
+        <a href="dashboard.html">Dashboard</a>
+    </div>
+</footer>
+
+<script>
+(function() {
+    var page = location.pathname.split('/').pop() || 'index.html';
+    document.querySelectorAll('.nav a').forEach(a => {
+        if (a.getAttribute('href') === page) a.classList.add('active');
+        if (a.getAttribute('href') === '/login' && location.protocol === 'file:') {
+            a.href = 'http://localhost:5000/login';
+        }
+    });
+})();
+</script>
+</body>
+</html>

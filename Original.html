@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard - Core Games Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Track your XP, level, and daily streak on the Core Games Studio player dashboard.">
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #0B0F17;
+    color: white;
+}
+
+.nav {
+    padding: 12px;
+    text-align: center;
+    background: rgba(0,0,0,0.6);
+    position: fixed;
+    width: 100%;
+    top: 0;
+    backdrop-filter: blur(10px);
+    z-index: 100;
+}
+
+.nav a {
+    color: white;
+    margin: 0 12px;
+    text-decoration: none;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+    padding-bottom: 4px;
+}
+
+.nav a:hover { opacity: 1; }
+
+.nav a.active {
+    opacity: 1;
+    color: #4CC9FF;
+    border-bottom: 2px solid #4CC9FF;
+}
+
+.hero {
+    text-align: center;
+    padding: 120px 20px 36px;
+}
+
+.hero-title {
+    font-size: 32px;
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+
+.hero-sub {
+    opacity: 0.6;
+    font-size: 15px;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    padding: 0 8% 10px;
+}
+
+.card {
+    background: #111827;
+    padding: 22px;
+    border-radius: 14px;
+}
+
+.card-label {
+    color: #4CC9FF;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    opacity: 0.8;
+    margin-bottom: 10px;
+}
+
+.stat-value {
+    font-size: 30px;
+    font-weight: bold;
+    margin-bottom: 4px;
+    line-height: 1;
+}
+
+.stat-sub {
+    font-size: 13px;
+    opacity: 0.5;
+    margin-top: 4px;
+}
+
+.xp-bar-container {
+    background: #1a2744;
+    border-radius: 6px;
+    height: 8px;
+    margin-top: 14px;
+    overflow: hidden;
+}
+
+.xp-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #0086c3, #00AEEF);
+    border-radius: 6px;
+    transition: width 0.7s ease;
+    min-width: 0;
+}
+
+.section {
+    padding: 10px 8% 12px;
+}
+
+.info-card {
+    background: #111827;
+    padding: 22px;
+    border-radius: 14px;
+}
+
+.info-card p {
+    opacity: 0.8;
+    margin: 8px 0 0;
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.btn {
+    display: inline-block;
+    padding: 11px 20px;
+    background: #00AEEF;
+    color: black;
+    border-radius: 10px;
+    font-weight: bold;
+    text-decoration: none;
+    font-size: 14px;
+    margin-top: 14px;
+    transition: opacity 0.2s, transform 0.1s;
+}
+
+.btn:hover { opacity: 0.85; transform: translateY(-1px); }
+
+h2 { color: #4CC9FF; margin: 0 0 8px; }
+
+.footer {
+    text-align: center;
+    padding: 28px 20px;
+    opacity: 0.55;
+    font-size: 13px;
+    border-top: 1px solid #1a2744;
+    margin-top: 40px;
+}
+
+.footer a {
+    color: #4CC9FF;
+    text-decoration: none;
+    margin: 0 10px;
+}
+
+.footer a:hover { opacity: 0.8; }
+</style>
+</head>
+<body>
+
+<div class="nav">
+    <a href="index.html">Home</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="activity.html">Activity</a>
+</div>
+
+<div class="hero">
+    <div class="hero-title">Your Progress</div>
+    <div class="hero-sub">Level, streak, and community status</div>
+</div>
+
+<div class="grid">
+
+    <div class="card">
+        <div class="card-label">Level</div>
+        <div class="stat-value" id="level-number">1</div>
+        <div class="stat-sub" id="level-title">Visitor</div>
+        <div class="xp-bar-container">
+            <div class="xp-bar" id="xp-bar" style="width:0%"></div>
+        </div>
+        <div class="stat-sub" id="xp-progress" style="margin-top:8px;"></div>
+    </div>
+
+    <div class="card">
+        <div class="card-label">Total XP</div>
+        <div class="stat-value" id="xp-display">0</div>
+        <div class="stat-sub">experience points</div>
+    </div>
+
+    <div class="card">
+        <div class="card-label">Daily Streak</div>
+        <div class="stat-value" id="streak-display">0</div>
+        <div class="stat-sub">days</div>
+    </div>
+
+    <div class="card">
+        <div class="card-label">Status</div>
+        <div class="stat-value" id="status-display" style="font-size:20px; padding-top:4px;">Visitor</div>
+        <div class="stat-sub" id="status-sub"></div>
+    </div>
+
+</div>
+
+<div class="section">
+    <div class="info-card">
+        <h2>Earn More XP</h2>
+        <p>Visit the Activity Hub to claim your daily reward, spin the Lucky Wheel, and take the Roblox Quiz.</p>
+        <a class="btn" href="activity.html">Go to Activity Hub</a>
+    </div>
+</div>
+
+<footer class="footer">
+    <div>Core Games Studio &copy; 2026</div>
+    <div style="margin-top:8px;">
+        <a href="https://discord.gg/rcGes2BrGE" target="_blank">Discord</a>
+        <a href="activity.html">Activity Hub</a>
+        <a href="index.html">Home</a>
+    </div>
+</footer>
+
+<script>
+// Active nav link
+(function() {
+    var page = window.location.pathname.split('/').pop() || 'index.html';
+    document.querySelectorAll('.nav a').forEach(function(a) {
+        if (a.getAttribute('href') === page) a.classList.add('active');
+    });
+})();
+
+function getLevelInfo(xp) {
+    var tiers = [
+        { min: 2000, level: 6, title: 'Elite',    next: null },
+        { min: 1000, level: 5, title: 'Veteran',  next: 2000 },
+        { min: 500,  level: 4, title: 'Regular',  next: 1000 },
+        { min: 250,  level: 3, title: 'Member',   next: 500  },
+        { min: 100,  level: 2, title: 'Newcomer', next: 250  },
+        { min: 0,    level: 1, title: 'Visitor',  next: 100  },
+    ];
+    for (var i = 0; i < tiers.length; i++) {
+        if (xp >= tiers[i].min) return tiers[i];
+    }
+    return tiers[tiers.length - 1];
+}
+
+function updateDashboard() {
+    var xp     = parseInt(localStorage.getItem('cgs_xp')     || '0');
+    var streak = parseInt(localStorage.getItem('cgs_streak') || '0');
+    var info   = getLevelInfo(xp);
+
+    document.getElementById('xp-display').textContent     = xp;
+    document.getElementById('streak-display').textContent = streak;
+    document.getElementById('level-number').textContent   = info.level;
+    document.getElementById('level-title').textContent    = info.title;
+    document.getElementById('status-display').textContent = info.title;
+
+    if (info.next !== null) {
+        var pct = Math.round(((xp - info.min) / (info.next - info.min)) * 100);
+        document.getElementById('xp-bar').style.width        = pct + '%';
+        document.getElementById('xp-progress').textContent   = (xp - info.min) + ' / ' + (info.next - info.min) + ' XP to level ' + (info.level + 1);
+        document.getElementById('status-sub').textContent    = (info.next - xp) + ' XP to next level';
+    } else {
+        document.getElementById('xp-bar').style.width        = '100%';
+        document.getElementById('xp-progress').textContent   = 'Maximum level reached';
+        document.getElementById('status-sub').textContent    = 'Maximum rank';
+    }
+}
+
+updateDashboard();
+setInterval(updateDashboard, 3000);
+</script>
+</body>
+</html>
