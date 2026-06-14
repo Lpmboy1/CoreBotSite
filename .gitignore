@@ -14,3 +14,6 @@ xp.db
 # System files
 .DS_Store
 *.swp
+
+# Backup files
+Original.html
