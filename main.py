@@ -2,6 +2,8 @@ import os
 import discord
 from discord.ext import commands, tasks
 import db
+from dotenv import load_dotenv
+load_dotenv()
 
 # ---------------- CONFIG ----------------
 

@@ -1,8 +1,12 @@
 import os
-import sqlite3
+import psycopg2
+from psycopg2 import sql
 import time
+from dotenv import load_dotenv
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "xp.db")
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 PROGRESSION_TIERS = [
     {"min": 2000, "level": 6, "title": "Elite",    "next": None},
@@ -15,7 +19,7 @@ PROGRESSION_TIERS = [
 
 
 def get_connection():
-    return sqlite3.connect(DB_PATH, timeout=30)
+    return psycopg2.connect(DATABASE_URL)
 
 
 def init_db():
@@ -33,7 +37,12 @@ def init_db():
         """
     )
 
-    columns = [row[1] for row in cur.execute("PRAGMA table_info(user_xp)").fetchall()]
+    cur.execute("""
+        SELECT column_name FROM information_schema.columns 
+        WHERE table_name = 'user_xp'
+    """)
+    columns = [row[0] for row in cur.fetchall()]
+    
     if "streak" not in columns:
         cur.execute("ALTER TABLE user_xp ADD COLUMN streak INTEGER NOT NULL DEFAULT 0")
     if "last_claim" not in columns:
@@ -42,6 +51,7 @@ def init_db():
         cur.execute("ALTER TABLE user_xp ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0")
 
     conn.commit()
+    cur.close()
     conn.close()
 
 
@@ -52,10 +62,11 @@ def get_all_xp():
     rows = cur.fetchall()
     conn.close()
     return rows
-
-
-def get_user_profile(user_id):
-    conn = get_connection()
+%s",
+        (user_id,),
+    )
+    row = cur.fetchone()
+    cur.clostion()
     cur = conn.cursor()
     cur.execute(
         "SELECT user_id, xp, streak, last_claim FROM user_xp WHERE user_id = ?",
@@ -74,13 +85,14 @@ def set_xp(user_id, xp):
     cur = conn.cursor()
     cur.execute(
         """
-        INSERT INTO user_xp (user_id, xp, updated_at)
-        VALUES (?, ?, ?)
+        INSERT I%s, %s, %s)
         ON CONFLICT(user_id)
         DO UPDATE SET xp=excluded.xp, updated_at=excluded.updated_at
         """,
         (user_id, xp, ts),
     )
+    conn.commit()
+    cur.close
     conn.commit()
     conn.close()
 
@@ -91,13 +103,14 @@ def add_xp(user_id, amount):
     cur = conn.cursor()
     cur.execute(
         """
-        INSERT INTO user_xp (user_id, xp, updated_at)
-        VALUES (?, ?, ?)
+        INSERT I%s, %s, %s)
         ON CONFLICT(user_id)
-        DO UPDATE SET xp = xp + ?, updated_at = ?
+        DO UPDATE SET xp = xp + %s, updated_at = %s
         """,
         (user_id, amount, ts, amount, ts),
     )
+    conn.commit()
+    cur.close
     conn.commit()
     conn.close()
 
@@ -120,18 +133,19 @@ def claim_daily(user_id, amount=25):
     else:
         streak = 1
 
-    new_xp = profile["xp"] + amount
-    cur = get_connection().cursor()
+    nonn = get_connection()
+    cur = conn.cursor()
     cur.execute(
         """
         INSERT INTO user_xp (user_id, xp, streak, last_claim, updated_at)
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s)
         ON CONFLICT(user_id)
-        DO UPDATE SET xp = ?, streak = ?, last_claim = ?, updated_at = ?
+        DO UPDATE SET xp = %s, streak = %s, last_claim = %s, updated_at = %s
         """,
-        (user_id, new_xp, streak, now, now, amount, streak, now, now),
+        (user_id, new_xp, streak, now, now, new_xp, streak, now, now),
     )
-    conn = cur.connection
+    conn.commit()
+    cur.closeconnection
     conn.commit()
     conn.close()
 

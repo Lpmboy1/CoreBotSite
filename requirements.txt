@@ -1,0 +1,6 @@
+flask
+requests
+discord.py
+python-dotenv
+supabase
+psycopg2-binary
