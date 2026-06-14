@@ -1,7 +1,7 @@
 import os
 import psycopg2
-from psycopg2 import sql
 import time
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -25,129 +25,150 @@ def get_connection():
 def init_db():
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS user_xp (
-            user_id TEXT PRIMARY KEY,
-            xp INTEGER NOT NULL DEFAULT 0,
-            streak INTEGER NOT NULL DEFAULT 0,
-            last_claim INTEGER,
-            updated_at INTEGER NOT NULL DEFAULT 0
+    try:
+        # Create core table
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_xp (
+                user_id TEXT PRIMARY KEY,
+                xp INTEGER NOT NULL DEFAULT 0,
+                streak INTEGER NOT NULL DEFAULT 0,
+                last_claim INTEGER,
+                updated_at INTEGER NOT NULL DEFAULT 0
+            )
+            """
         )
-        """
-    )
 
-    cur.execute("""
-        SELECT column_name FROM information_schema.columns 
-        WHERE table_name = 'user_xp'
-    """)
-    columns = [row[0] for row in cur.fetchall()]
-    
-    if "streak" not in columns:
-        cur.execute("ALTER TABLE user_xp ADD COLUMN streak INTEGER NOT NULL DEFAULT 0")
-    if "last_claim" not in columns:
-        cur.execute("ALTER TABLE user_xp ADD COLUMN last_claim INTEGER")
-    if "updated_at" not in columns:
-        cur.execute("ALTER TABLE user_xp ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0")
+        # Apply schema migrations safely if columns are missing
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'user_xp'
+        """)
+        columns = [row[0] for row in cur.fetchall()]
+        
+        if "streak" not in columns:
+            cur.execute("ALTER TABLE user_xp ADD COLUMN streak INTEGER NOT NULL DEFAULT 0")
+        if "last_claim" not in columns:
+            cur.execute("ALTER TABLE user_xp ADD COLUMN last_claim INTEGER")
+        if "updated_at" not in columns:
+            cur.execute("ALTER TABLE user_xp ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0")
 
-    conn.commit()
-    cur.close()
-    conn.close()
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
 
 
 def get_all_xp():
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("SELECT user_id, xp FROM user_xp")
-    rows = cur.fetchall()
-    conn.close()
-    return rows
-%s",
-        (user_id,),
-    )
-    row = cur.fetchone()
-    cur.clostion()
+    try:
+        cur.execute("SELECT user_id, xp FROM user_xp")
+        return cur.fetchall()
+    finally:
+        cur.close()
+        conn.close()
+
+
+def get_user_xp(user_id):
+    conn = get_connection()
     cur = conn.cursor()
-    cur.execute(
-        "SELECT user_id, xp, streak, last_claim FROM user_xp WHERE user_id = ?",
-        (user_id,),
-    )
-    row = cur.fetchone()
-    conn.close()
-    if row is None:
-        return {"user_id": user_id, "xp": 0, "streak": 0, "last_claim": None}
-    return {"user_id": row[0], "xp": row[1], "streak": row[2] or 0, "last_claim": row[3]}
+    try:
+        cur.execute(
+            "SELECT user_id, xp, streak, last_claim FROM user_xp WHERE user_id = %s",
+            (user_id,),
+        )
+        row = cur.fetchone()
+        if row is None:
+            return {"user_id": user_id, "xp": 0, "streak": 0, "last_claim": None}
+        
+        return {
+            "user_id": row[0], 
+            "xp": row[1], 
+            "streak": row[2] or 0, 
+            "last_claim": row[3]
+        }
+    finally:
+        cur.close()
+        conn.close()
 
 
 def set_xp(user_id, xp):
     ts = int(time.time())
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute(
-        """
-        INSERT I%s, %s, %s)
-        ON CONFLICT(user_id)
-        DO UPDATE SET xp=excluded.xp, updated_at=excluded.updated_at
-        """,
-        (user_id, xp, ts),
-    )
-    conn.commit()
-    cur.close
-    conn.commit()
-    conn.close()
+    try:
+        cur.execute(
+            """
+            INSERT INTO user_xp (user_id, xp, updated_at)
+            VALUES (%s, %s, %s)
+            ON CONFLICT(user_id)
+            DO UPDATE SET xp = EXCLUDED.xp, updated_at = EXCLUDED.updated_at
+            """,
+            (user_id, xp, ts),
+        )
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
 
 
 def add_xp(user_id, amount):
     ts = int(time.time())
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute(
-        """
-        INSERT I%s, %s, %s)
-        ON CONFLICT(user_id)
-        DO UPDATE SET xp = xp + %s, updated_at = %s
-        """,
-        (user_id, amount, ts, amount, ts),
-    )
-    conn.commit()
-    cur.close
-    conn.commit()
-    conn.close()
+    try:
+        cur.execute(
+            """
+            INSERT INTO user_xp (user_id, xp, updated_at)
+            VALUES (%s, %s, %s)
+            ON CONFLICT(user_id)
+            DO UPDATE SET xp = user_xp.xp + EXCLUDED.xp, updated_at = EXCLUDED.updated_at
+            """,
+            (user_id, amount, ts),
+        )
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
 
 
 def claim_daily(user_id, amount=25):
-    profile = get_user_profile(user_id)
+    profile = get_user_xp(user_id)
     now = int(time.time())
     last_claim = profile["last_claim"]
-    if last_claim and now - last_claim < 86400:
-        raise ValueError("Daily reward already claimed")
-
-    last_claim_time = time.gmtime(last_claim) if last_claim else None
-    yesterday = time.gmtime(now - 86400)
-    if (
-        last_claim_time
-        and last_claim_time.tm_year == yesterday.tm_year
-        and last_claim_time.tm_yday == yesterday.tm_yday
-    ):
-        streak = profile["streak"] + 1
+    
+    current_date = datetime.fromtimestamp(now).date()
+    
+    if last_claim:
+        last_claim_date = datetime.fromtimestamp(last_claim).date()
+        if current_date == last_claim_date:
+            raise ValueError("Daily reward already claimed today")
+        elif current_date == last_claim_date + timedelta(days=1):
+            streak = profile["streak"] + 1
+        else:
+            streak = 1
     else:
         streak = 1
 
-    nonn = get_connection()
+    new_xp = profile["xp"] + amount
+
+    conn = get_connection()
     cur = conn.cursor()
-    cur.execute(
-        """
-        INSERT INTO user_xp (user_id, xp, streak, last_claim, updated_at)
-        VALUES (%s, %s, %s, %s, %s)
-        ON CONFLICT(user_id)
-        DO UPDATE SET xp = %s, streak = %s, last_claim = %s, updated_at = %s
-        """,
-        (user_id, new_xp, streak, now, now, new_xp, streak, now, now),
-    )
-    conn.commit()
-    cur.closeconnection
-    conn.commit()
-    conn.close()
+    try:
+        cur.execute(
+            """
+            INSERT INTO user_xp (user_id, xp, streak, last_claim, updated_at)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT(user_id)
+            DO UPDATE SET xp = EXCLUDED.xp, streak = EXCLUDED.streak, last_claim = EXCLUDED.last_claim, updated_at = EXCLUDED.updated_at
+            """,
+            (user_id, new_xp, streak, now, now),
+        )
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
 
     return {
         "user_id": user_id,
