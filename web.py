@@ -1,7 +1,7 @@
 import os
 import asyncio
 import threading
-from flask import Flask, redirect, request, session, jsonify
+from flask import Flask, redirect, request, session, jsonify, url_for
 import requests
 import db
 import discord
@@ -15,7 +15,6 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY", "<YOUR_FLASK_SECRET_KEY>")
 
 CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "1515335648188432424")
 CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET", "<YOUR_DISCORD_CLIENT_SECRET>")
-REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI", "http://localhost:5000/callback")
 
 db.init_db()
 
@@ -116,12 +115,15 @@ bot_thread.start()
 
 @app.route("/login")
 def login():
+    # Generate dynamic redirect URI using the current request's host
+    redirect_uri = url_for('callback', _external=True)
+    
     url = (
         "https://discord.com/api/oauth2/authorize"
         f"?client_id={CLIENT_ID}"
         "&response_type=code"
         "&scope=identify"
-        f"&redirect_uri={REDIRECT_URI}"
+        f"&redirect_uri={redirect_uri}"
     )
     return redirect(url)
 
@@ -133,12 +135,15 @@ def callback():
     if not code:
         return jsonify({"error": "missing code"}), 400
 
+    # Generate dynamic redirect URI for token exchange
+    redirect_uri = url_for('callback', _external=True)
+
     data = {
         "client_id": CLIENT_ID,
         "client_secret": CLIENT_SECRET,
         "grant_type": "authorization_code",
         "code": code,
-        "redirect_uri": REDIRECT_URI,
+        "redirect_uri": redirect_uri,
         "scope": "identify"
     }
 
