@@ -10,7 +10,6 @@ CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "1515335648188432424")
 CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET", "<YOUR_DISCORD_CLIENT_SECRET>")
 REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI", "http://localhost:5000/callback")
 
-
 db.init_db()
 
 
@@ -31,6 +30,7 @@ def login():
 @app.route("/callback")
 def callback():
     code = request.args.get("code")
+
     if not code:
         return jsonify({"error": "missing code"}), 400
 
@@ -43,10 +43,18 @@ def callback():
         "scope": "identify"
     }
 
-    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
 
-    r = requests.post("https://discord.com/api/oauth2/token", data=data, headers=headers)
+    r = requests.post(
+        "https://discord.com/api/oauth2/token",
+        data=data,
+        headers=headers
+    )
+
     r.raise_for_status()
+
     token = r.json()["access_token"]
 
     user = requests.get(
@@ -92,10 +100,15 @@ def me():
     if not require_login():
         return jsonify({"error": "not logged in"}), 401
 
-    profile = db.get_user_profile(session["user_id"])
-    tier = next((t for t in db.PROGRESSION_TIERS if profile["xp"] >= t["min"]), db.PROGRESSION_TIERS[-1])
+    # FIXED: get_user_profile -> get_user_xp
+    profile = db.get_user_xp(session["user_id"])
 
-    return {
+    tier = next(
+        (t for t in db.PROGRESSION_TIERS if profile["xp"] >= t["min"]),
+        db.PROGRESSION_TIERS[-1]
+    )
+
+    return jsonify({
         "user_id": session["user_id"],
         "username": session["username"],
         "xp": profile["xp"],
@@ -104,7 +117,7 @@ def me():
         "level": tier["level"],
         "title": tier["title"],
         "next_threshold": tier["next"],
-    }
+    })
 
 
 @app.route("/add_xp", methods=["POST"])
@@ -113,12 +126,18 @@ def api_add_xp():
         return jsonify({"error": "not logged in"}), 401
 
     data = request.json or {}
-    amount = int(data.get("amount", 0))
+
+    try:
+        amount = int(data.get("amount", 0))
+    except (ValueError, TypeError):
+        return jsonify({"error": "invalid amount"}), 400
+
     if amount <= 0:
         return jsonify({"error": "invalid amount"}), 400
 
     db.add_xp(session["user_id"], amount)
-    return {"status": "ok"}
+
+    return jsonify({"status": "ok"})
 
 
 @app.route("/set_xp", methods=["POST"])
@@ -127,12 +146,18 @@ def api_set_xp():
         return jsonify({"error": "not logged in"}), 401
 
     data = request.json or {}
-    xp = int(data.get("xp", 0))
+
+    try:
+        xp = int(data.get("xp", 0))
+    except (ValueError, TypeError):
+        return jsonify({"error": "invalid xp"}), 400
+
     if xp < 0:
         return jsonify({"error": "invalid xp"}), 400
 
     db.set_xp(session["user_id"], xp)
-    return {"status": "ok"}
+
+    return jsonify({"status": "ok"})
 
 
 @app.route("/claim_daily", methods=["POST"])
@@ -142,10 +167,28 @@ def api_claim_daily():
 
     try:
         result = db.claim_daily(session["user_id"])
-        return {"status": "ok", "profile": result}
+        return jsonify({
+            "status": "ok",
+            "profile": result
+        })
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/health")
+def health():
+    return jsonify({
+        "status": "ok"
+    })
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+
+    app.run(
+        host="0.0.0.0",
+        port=port,
+        debug=False
+    )
