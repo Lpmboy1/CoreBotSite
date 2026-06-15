@@ -1,6 +1,7 @@
 import os
 import asyncio
 import threading
+import time
 from flask import Flask, redirect, request, session, jsonify, url_for
 import requests
 import db
@@ -34,6 +35,7 @@ ROLE_MAP = {
 
 intents = discord.Intents.default()
 intents.members = True
+intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -94,22 +96,44 @@ async def sync_roles():
 
 @bot.event
 async def on_ready():
-    print(f"Logged in as {bot.user}")
+    print(f"✅ Discord bot logged in as {bot.user}")
     sync_roles.start()
+
+
+async def start_bot():
+    """Async function to start the Discord bot"""
+    try:
+        print("🤖 Starting Discord bot...")
+        await bot.start(DISCORD_TOKEN)
+    except Exception as e:
+        print(f"❌ Bot startup error: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 def run_bot_in_thread():
     """Run the Discord bot in a separate thread with its own event loop"""
+    print("🔄 Creating new event loop for bot thread...")
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
-        asyncio.run(bot.start(DISCORD_TOKEN))
+        loop.run_until_complete(start_bot())
     except Exception as e:
-        print(f"Bot error: {e}")
+        print(f"❌ Bot thread error: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        loop.close()
 
 
 # -------- START BOT IN BACKGROUND THREAD --------
-
-bot_thread = threading.Thread(target=run_bot_in_thread, daemon=True)
+print("⏳ Starting bot thread...")
+bot_thread = threading.Thread(target=run_bot_in_thread, daemon=False)
 bot_thread.start()
+print("✅ Bot thread started")
+
+# Small delay to ensure bot initializes before Flask starts
+time.sleep(2)
 
 # -------- DISCORD OAUTH --------
 
@@ -290,6 +314,7 @@ def health():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
+    print(f"🚀 Starting Flask on port {port}...")
 
     app.run(
         host="0.0.0.0",
