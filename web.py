@@ -1,7 +1,13 @@
 import os
+import threading
 from flask import Flask, redirect, request, session, jsonify
 import requests
 import db
+import discord
+from discord.ext import commands, tasks
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "<YOUR_FLASK_SECRET_KEY>")
@@ -12,8 +18,97 @@ REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI", "http://localhost:5000/callback
 
 db.init_db()
 
+# -------- DISCORD BOT SETUP --------
 
-# ---------------- DISCORD OAUTH ----------------
+DISCORD_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "<YOUR_DISCORD_BOT_TOKEN>")
+GUILD_ID = int(os.getenv("DISCORD_GUILD_ID", "1491435881733558374"))
+
+ROLE_MAP = {
+    1: 1515290650000000000,  # Visitor
+    2: 1515290700000000000,  # Newcomer
+    3: 1509940190725279834,  # Member
+    4: 1515290501878775909,  # Regular
+    5: 1515290564541550733,  # Veteran
+    6: 1515290613812166727,  # Elite
+}
+
+intents = discord.Intents.default()
+intents.members = True
+
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+
+async def sync_member_roles(member: discord.Member, new_level: int):
+    guild = member.guild
+
+    new_role_id = ROLE_MAP.get(new_level)
+    if not new_role_id:
+        return
+
+    new_role = guild.get_role(new_role_id)
+    if not new_role:
+        return
+
+    if new_role in member.roles:
+        return
+
+    for role_id in ROLE_MAP.values():
+        role = guild.get_role(role_id)
+        if role and role in member.roles:
+            try:
+                await member.remove_roles(role, reason="XP progression sync")
+            except discord.Forbidden:
+                pass
+
+    try:
+        await member.add_roles(new_role, reason="XP progression sync")
+    except discord.Forbidden:
+        pass
+
+
+@tasks.loop(minutes=10)
+async def sync_roles():
+    guild = bot.get_guild(GUILD_ID)
+    if not guild:
+        return
+
+    data = db.get_all_xp()
+
+    for user_id, xp in data:
+        try:
+            member = guild.get_member(int(user_id))
+            if member is None:
+                member = await guild.fetch_member(int(user_id))
+
+            level = db.get_tier(xp)
+            await sync_member_roles(member, level)
+            print(f"{member} -> XP {xp} -> Level {level}")
+
+        except discord.NotFound:
+            continue
+        except discord.Forbidden:
+            print(f"No permission for {user_id}")
+        except Exception as e:
+            print(f"Error {user_id}: {e}")
+
+
+@bot.event
+async def on_ready():
+    print(f"Logged in as {bot.user}")
+    sync_roles.start()
+
+
+def run_bot():
+    """Run the Discord bot in a background thread"""
+    bot.run(DISCORD_TOKEN)
+
+
+# -------- START BOT IN BACKGROUND THREAD --------
+
+bot_thread = threading.Thread(target=run_bot, daemon=True)
+bot_thread.start()
+
+# -------- DISCORD OAUTH --------
 
 @app.route("/login")
 def login():
@@ -89,7 +184,7 @@ def activity():
     return app.send_static_file("activity.html")
 
 
-# ---------------- API ----------------
+# -------- API --------
 
 def require_login():
     return "user_id" in session
