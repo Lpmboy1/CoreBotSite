@@ -1,4 +1,5 @@
 import os
+import asyncio
 import threading
 from flask import Flask, redirect, request, session, jsonify
 import requests
@@ -98,14 +99,17 @@ async def on_ready():
     sync_roles.start()
 
 
-def run_bot():
-    """Run the Discord bot in a background thread"""
-    bot.run(DISCORD_TOKEN)
+def run_bot_in_thread():
+    """Run the Discord bot in a separate thread with its own event loop"""
+    try:
+        asyncio.run(bot.start(DISCORD_TOKEN))
+    except Exception as e:
+        print(f"Bot error: {e}")
 
 
 # -------- START BOT IN BACKGROUND THREAD --------
 
-bot_thread = threading.Thread(target=run_bot, daemon=True)
+bot_thread = threading.Thread(target=run_bot_in_thread, daemon=True)
 bot_thread.start()
 
 # -------- DISCORD OAUTH --------
