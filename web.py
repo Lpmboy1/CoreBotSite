@@ -3,6 +3,7 @@ import asyncio
 import threading
 import time
 from flask import Flask, redirect, request, session, jsonify, url_for
+from werkzeug.middleware.proxy_fix import ProxyFix
 import requests
 import db
 import discord
@@ -12,6 +13,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__, static_folder='.', static_url_path='')
+
+# Sørger for at Flask genererer https:// links i stedet for http:// på Render
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "<YOUR_FLASK_SECRET_KEY>")
 
 CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "1515335648188432424")
@@ -139,11 +144,11 @@ time.sleep(2)
 
 @app.route("/login")
 def login():
-    # Generate dynamic redirect URI using the current request's host
+    # Genererer automatisk det korrekte live-link (https) pga ProxyFix
     redirect_uri = url_for('callback', _external=True)
     
     url = (
-        "https://discord.com/api/oauth2/authorize"
+        "https://discord.com"
         f"?client_id={CLIENT_ID}"
         "&response_type=code"
         "&scope=identify"
@@ -159,7 +164,6 @@ def callback():
     if not code:
         return jsonify({"error": "missing code"}), 400
 
-    # Generate dynamic redirect URI for token exchange
     redirect_uri = url_for('callback', _external=True)
 
     data = {
@@ -176,7 +180,7 @@ def callback():
     }
 
     r = requests.post(
-        "https://discord.com/api/oauth2/token",
+        "https://discord.com",
         data=data,
         headers=headers
     )
@@ -186,7 +190,7 @@ def callback():
     token = r.json()["access_token"]
 
     user = requests.get(
-        "https://discord.com/api/users/@me",
+        "https://discord.com",
         headers={"Authorization": f"Bearer {token}"}
     ).json()
 
@@ -228,7 +232,6 @@ def me():
     if not require_login():
         return jsonify({"error": "not logged in"}), 401
 
-    # FIXED: get_user_profile -> get_user_xp
     profile = db.get_user_xp(session["user_id"])
 
     tier = next(
