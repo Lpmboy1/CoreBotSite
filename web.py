@@ -17,7 +17,7 @@ app = Flask(__name__, static_folder='.', static_url_path='')
 # Sørger for at Flask genererer https:// links i stedet for http:// på Render
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "<YOUR_FLASK_SECRET_KEY>")
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "super-secret-key-change-me")
 
 CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "1515335648188432424")
 CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET", "<YOUR_DISCORD_CLIENT_SECRET>")
@@ -102,7 +102,8 @@ async def sync_roles():
 @bot.event
 async def on_ready():
     print(f"✅ Discord bot logged in as {bot.user}")
-    sync_roles.start()
+    if not sync_roles.is_running():
+        sync_roles.start()
 
 
 async def start_bot():
@@ -112,8 +113,6 @@ async def start_bot():
         await bot.start(DISCORD_TOKEN)
     except Exception as e:
         print(f"❌ Bot startup error: {e}")
-        import traceback
-        traceback.print_exc()
 
 
 def run_bot_in_thread():
@@ -125,27 +124,33 @@ def run_bot_in_thread():
         loop.run_until_complete(start_bot())
     except Exception as e:
         print(f"❌ Bot thread error: {e}")
-        import traceback
-        traceback.print_exc()
     finally:
         loop.close()
 
 
 # -------- START BOT IN BACKGROUND THREAD --------
 print("⏳ Starting bot thread...")
-bot_thread = threading.Thread(target=run_bot_in_thread, daemon=False)
+bot_thread = threading.Thread(target=run_bot_in_thread, daemon=True)
 bot_thread.start()
 print("✅ Bot thread started")
 
 # Small delay to ensure bot initializes before Flask starts
 time.sleep(2)
 
+
+# -------- HJÆLPEFUNKTION TIL REDIRECT URL --------
+def get_redirect_uri():
+    # Hvis appen kører live på Render, tvinger vi den rigtige adresse igennem
+    if "onrender.com" in request.host or os.getenv("PORT"):
+        return "https://onrender.com"
+    return url_for('callback', _external=True)
+
+
 # -------- DISCORD OAUTH --------
 
 @app.route("/login")
 def login():
-    # Genererer automatisk det korrekte live-link (https) pga ProxyFix
-    redirect_uri = url_for('callback', _external=True)
+    redirect_uri = get_redirect_uri()
     
     url = (
         "https://discord.com"
@@ -164,7 +169,7 @@ def callback():
     if not code:
         return jsonify({"error": "missing code"}), 400
 
-    redirect_uri = url_for('callback', _external=True)
+    redirect_uri = get_redirect_uri()
 
     data = {
         "client_id": CLIENT_ID,
@@ -324,3 +329,4 @@ if __name__ == "__main__":
         port=port,
         debug=False
     )
+
