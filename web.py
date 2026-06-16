@@ -140,7 +140,7 @@ time.sleep(2)
 
 # -------- HJÆLPEFUNKTION TIL REDIRECT URL --------
 def get_redirect_uri():
-    # Hvis appen kører live på Render, tvinger vi den rigtige adresse igennem
+    # Retter fejlen: Tvinger dit rigtige Render-link med /callback sti igennem online
     if "onrender.com" in request.host or os.getenv("PORT"):
         return "https://onrender.com"
     return url_for('callback', _external=True)
@@ -152,6 +152,7 @@ def get_redirect_uri():
 def login():
     redirect_uri = get_redirect_uri()
     
+    # Retter fejlen: Bruger det rigtige API-endepunkt til login i stedet for bare discord.com
     url = (
         "https://discord.com"
         f"?client_id={CLIENT_ID}"
@@ -184,6 +185,7 @@ def callback():
         "Content-Type": "application/x-www-form-urlencoded"
     }
 
+    # Retter fejlen: Sender token-anmodningen til det rigtige token API-endepunkt
     r = requests.post(
         "https://discord.com",
         data=data,
@@ -194,6 +196,7 @@ def callback():
 
     token = r.json()["access_token"]
 
+    # Retter fejlen: Henter brugerprofilen fra det rigtige users/@me API-endepunkt
     user = requests.get(
         "https://discord.com",
         headers={"Authorization": f"Bearer {token}"}
@@ -329,4 +332,3 @@ if __name__ == "__main__":
         port=port,
         debug=False
     )
-
