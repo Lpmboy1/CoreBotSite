@@ -142,7 +142,7 @@ time.sleep(2)
 def get_redirect_uri():
     # Retter fejlen: Tvinger dit rigtige Render-link med /callback sti igennem online
     if "onrender.com" in request.host or os.getenv("PORT"):
-        return "https://corebotsite.onrender.com/"
+        return "https://corebotsite.onrender.com/callback"
     return url_for('callback', _external=True)
 
 
@@ -152,7 +152,7 @@ def get_redirect_uri():
 def login():
     redirect_uri = get_redirect_uri()
     url = (
-        "https://discord.com"
+        "https://discord.com/oauth2/authorize"
         f"?client_id={CLIENT_ID}"
         "&response_type=code"
         "&scope=identify"
@@ -183,26 +183,34 @@ def callback():
     }
 
     # Retter fejlen: Sender token-anmodningen til det rigtige token API-endepunkt
-    r = requests.post(
-        "https://discord.com",
-        data=data,
-        headers=headers
-    )
+    try:
+        r = requests.post(
+            "https://discord.com/api/oauth2/token",
+            data=data,
+            headers=headers
+        )
 
-    r.raise_for_status()
+        r.raise_for_status()
 
-    token = r.json()["access_token"]
+        token = r.json()["access_token"]
 
-    # Retter fejlen: Henter brugerprofilen fra det rigtige users/@me API-endepunkt
-    user = requests.get(
-        "https://discord.com",
-        headers={"Authorization": f"Bearer {token}"}
-    ).json()
+        # Retter fejlen: Henter brugerprofilen fra det rigtige users/@me API-endepunkt
+        user = requests.get(
+            "https://discord.com/api/users/@me",
+            headers={"Authorization": f"Bearer {token}"}
+        ).json()
 
-    session["user_id"] = user["id"]
-    session["username"] = user["username"]
+        session["user_id"] = user["id"]
+        session["username"] = user["username"]
+        session["avatar"] = user.get("avatar")
+        
+        # Initialiser bruger i databasen hvis ikke eksisterer
+        db.init_user(user["id"], user["username"])
 
-    return redirect("/dashboard")
+        return redirect("/dashboard")
+    except Exception as e:
+        print(f"OAuth error: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/logout")
