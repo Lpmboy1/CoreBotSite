@@ -142,7 +142,7 @@ time.sleep(2)
 def get_redirect_uri():
     # Retter fejlen: Tvinger dit rigtige Render-link med /callback sti igennem online
     if "onrender.com" in request.host or os.getenv("PORT"):
-        return "https://onrender.com"
+        return "https://corebotsite.onrender.com/"
     return url_for('callback', _external=True)
 
 
