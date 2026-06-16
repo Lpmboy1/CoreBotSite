@@ -31,6 +31,7 @@ def init_db():
             """
             CREATE TABLE IF NOT EXISTS user_xp (
                 user_id TEXT PRIMARY KEY,
+                username TEXT,
                 xp INTEGER NOT NULL DEFAULT 0,
                 streak INTEGER NOT NULL DEFAULT 0,
                 last_claim INTEGER,
@@ -46,6 +47,8 @@ def init_db():
         """)
         columns = [row[0] for row in cur.fetchall()]
         
+        if "username" not in columns:
+            cur.execute("ALTER TABLE user_xp ADD COLUMN username TEXT")
         if "streak" not in columns:
             cur.execute("ALTER TABLE user_xp ADD COLUMN streak INTEGER NOT NULL DEFAULT 0")
         if "last_claim" not in columns:
@@ -53,6 +56,26 @@ def init_db():
         if "updated_at" not in columns:
             cur.execute("ALTER TABLE user_xp ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0")
 
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+
+
+def init_user(user_id, username):
+    """Initialize a new user in the database if they don't exist"""
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            INSERT INTO user_xp (user_id, username, xp, streak, updated_at)
+            VALUES (%s, %s, 0, 0, %s)
+            ON CONFLICT(user_id)
+            DO UPDATE SET username = EXCLUDED.username
+            """,
+            (user_id, username, int(time.time())),
+        )
         conn.commit()
     finally:
         cur.close()
