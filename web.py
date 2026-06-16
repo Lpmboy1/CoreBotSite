@@ -151,8 +151,6 @@ def get_redirect_uri():
 @app.route("/login")
 def login():
     redirect_uri = get_redirect_uri()
-    
-    # Retter fejlen: Bruger det rigtige API-endepunkt til login i stedet for bare discord.com
     url = (
         "https://discord.com"
         f"?client_id={CLIENT_ID}"
@@ -161,7 +159,6 @@ def login():
         f"&redirect_uri={redirect_uri}"
     )
     return redirect(url)
-
 
 @app.route("/callback")
 def callback():
